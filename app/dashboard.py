@@ -31,58 +31,29 @@ st.set_page_config(
 # --- CSS Styling ---
 st.markdown("""
 <style>
-/* App background */
-.stApp {
-    background-color: #f8f9fa;
-}
-
-/* Top bar styling */
-.header {
-    background-color: #1f2937;
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 5px;
-    margin-bottom: 1rem;
-}
-
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background-color: #e5e7eb;
-    padding: 1rem;
-}
-
-/* Buttons */
-.stButton>button {
-    background-color: #2563eb;
-    color: white;
-    font-size: 16px;
-    height: 45px;
-    border-radius: 5px;
-}
-
-/* Tables */
-.stTable {
-    font-size: 14px;
-}
+.stApp { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+.header { background-color: #1f2937; color: white; padding: 1rem 2rem; border-radius: 5px; margin-bottom: 1rem; }
+[data-testid="stSidebar"] { background-color: #e5e7eb; padding: 1rem; }
+.stButton>button { background-color: #2563eb; color: white; font-size: 16px; height: 45px; border-radius: 5px; }
+.stTable { font-size: 14px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Top Navigation / Header ---
+# --- Header ---
 st.markdown('<div class="header"><h2>Interview Authenticity Checker</h2></div>', unsafe_allow_html=True)
 
-# Optional: add logo on top right
+# Optional logo
 st.markdown("""
 <div style="text-align:right; margin-bottom:10px;">
     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Logo_of_Streamlit.svg/1200px-Logo_of_Streamlit.svg.png" width="100">
 </div>
 """, unsafe_allow_html=True)
 
-# --- Sidebar for Uploads & Settings ---
+# --- Sidebar for uploads & settings ---
 st.sidebar.title("Upload & Settings")
 uploaded_video = st.sidebar.file_uploader("Upload Interview Video", type=["mp4", "mov", "avi"])
 uploaded_photo = st.sidebar.file_uploader("Upload ID Photo (optional)", type=["jpg", "png", "jpeg"])
 sample_rate = st.sidebar.slider("Frame Sample Rate", min_value=1, max_value=30, value=8, help="Lower = more frames processed, slower but more accurate")
-
 st.sidebar.markdown("---")
 st.sidebar.markdown("If no files are uploaded, default files from `data/` will be used.")
 
@@ -105,57 +76,100 @@ elif default_photo:
 else:
     photo_path = None
 
-# --- Main Content Layout with Columns ---
-col1, col2 = st.columns(2)
+# --- Tabs for sections ---
+tab1, tab2, tab3 = st.tabs(["📤 Upload", "📊 Analysis Results", "🖼️ Face Snapshots"])
 
-with col1:
+# --- Tab 1: Upload Preview ---
+with tab1:
+    st.subheader("Video Preview")
     if video_path and video_path.exists():
-        st.subheader("Video Preview")
         st.video(str(video_path))
-    if photo_path and photo_path.exists():
-        st.subheader("ID / Reference Photo")
-        st.image(str(photo_path), width=300)
+    else:
+        st.info("Upload a video to preview it here.")
 
-with col2:
+    st.subheader("ID / Reference Photo")
+    if photo_path and photo_path.exists():
+        st.image(str(photo_path), width=300)
+    else:
+        st.info("Upload a reference photo to preview it here.")
+
+# --- Tab 2: Analysis Results ---
+with tab2:
     if st.button("Run Analysis"):
         if not video_path or not video_path.exists():
             st.error("No video available. Upload one or place it in the data folder.")
         else:
-            # Deepfake Score
-            st.subheader("Deepfake Analysis")
+            # --- Deepfake Score Card ---
             try:
-                authenticity = predict_video_authenticity(video_path, model_path=MODEL_PATH if MODEL_PATH.exists() else None, sample_rate=sample_rate)
+                authenticity = predict_video_authenticity(
+                    video_path,
+                    model_path=MODEL_PATH if MODEL_PATH.exists() else None,
+                    sample_rate=sample_rate
+                )
+                
                 if authenticity > 80:
-                    st.success(f"Authenticity Score: {authenticity:.2f}% — Likely Real")
+                    color = "#16a34a"  # green
+                    status = "Likely Real"
                 elif authenticity > 50:
-                    st.warning(f"Authenticity Score: {authenticity:.2f}% — Check Carefully")
+                    color = "#eab308"  # yellow
+                    status = "Check Carefully"
                 else:
-                    st.error(f"Authenticity Score: {authenticity:.2f}% — Likely Fake")
+                    color = "#dc2626"  # red
+                    status = "Likely Fake"
+
+                st.markdown(f"""
+                <div style="
+                    background-color:{color};
+                    color:white;
+                    padding:20px;
+                    border-radius:10px;
+                    text-align:center;
+                    font-size:22px;
+                    font-weight:bold;">
+                    Deepfake Score: {authenticity:.2f}% — {status}
+                </div>
+                """, unsafe_allow_html=True)
+
             except Exception as e:
                 st.warning(f"Could not run deepfake analysis: {e}")
 
-            # Suspicious Activity
-            st.subheader("Suspicious Activity Report")
+            # --- Suspicious Activity Card ---
             try:
                 activity_report = analyze_video_for_activity(video_path, sample_rate=sample_rate)
+                
+                st.markdown(f"""
+                <div style="
+                    background-color:#2563eb;
+                    color:white;
+                    padding:15px;
+                    border-radius:10px;
+                    margin-top:15px;
+                    font-size:18px;">
+                    Suspicious Activity Report
+                </div>
+                """, unsafe_allow_html=True)
+                
                 report_df = pd.DataFrame([activity_report])
                 st.table(report_df)
+
             except Exception as e:
                 st.warning(f"Could not run activity analysis: {e}")
 
-            # Face Snapshot
-            st.subheader("Detected Faces Snapshot")
-            try:
-                snapshot_path = OUT_DIR / "snapshot_faces.jpg"
-                draw_faces(video_path, snapshot_path)
-                st.image(str(snapshot_path))
-            except Exception as e:
-                st.warning(f"Could not create face snapshot: {e}")
+# --- Tab 3: Face Snapshots ---
+with tab3:
+    st.subheader("Detected Faces Snapshot")
+    try:
+        snapshot_path = OUT_DIR / "snapshot_faces.jpg"
+        draw_faces(video_path, snapshot_path)
+        st.image(str(snapshot_path))
+    except Exception as e:
+        st.info("Face snapshot will appear here after analysis.")
 
 # --- Footer Notes ---
 st.markdown("""
 ---
 **Notes:**  
 - Demo prototype for portfolio purposes.  
-- Replace placeholder models with production-level models for deployment.
+- Replace placeholder models with production-level models for deployment.  
+- AI-powered detection for fair and authentic digital recruitment.
 """)
