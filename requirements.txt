@@ -1,3 +1,5 @@
 streamlit
-opencv-python
-pathlib
+opencv-python-headless
+numpy
+pandas
+
