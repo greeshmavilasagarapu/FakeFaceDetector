@@ -1,6 +1,6 @@
 # 🎥 FakeFaceDetector — AI-Powered Interview Authenticity Checker
 # 🎭 Fake Face Detector  
-**Live Demo:** [Click Here]([https://fakefacedetector-knm2exedqdryvavpujygzk.streamlit.app/])
+**Live Demo:** [Click Here](https://fakefacedetector-knm2exedqdryvavpujygzk.streamlit.app/)
 
 An **AI-powered system** that detects fake faces, deepfakes, and suspicious activities in video interviews — ensuring fairness and authenticity in digital recruitment.
 
@@ -13,4 +13,5 @@ An **AI-powered system** that detects fake faces, deepfakes, and suspicious acti
 - 💾 Modular Python code structure (easy to upgrade to real ML models).
 ---
 ## 🧱 Project Structure
+
 
