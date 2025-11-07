@@ -12,6 +12,10 @@ An **AI-powered system** that detects fake faces, deepfakes, and suspicious acti
 - 📊 **Interactive Dashboard** built with Streamlit.
 - 💾 Modular Python code structure (easy to upgrade to real ML models).
 ---
-## 🧱 Project Structure
+
+## 👩‍💻 Author
+**Greeshma Vilasagarapu**  
+💼 AI & ML Enthusiast | Software Engineer in progress
+
 
 
