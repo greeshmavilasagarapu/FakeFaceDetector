@@ -1,16 +1,15 @@
-# app/dashboard.py
 import sys
+import os
 from pathlib import Path
-import streamlit as st
-import cv2
-import tempfile
-import time
-import numpy as np
 
-# Add app folder to path so Python can find modules
-BASE_DIR = Path(__file__).resolve().parents[1]
-sys.path.append(str(BASE_DIR / "app"))
-# --- Imports ---
+# ✅ Ensure the "app" folder is in the Python path
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.append(str(BASE_DIR))
+
+import streamlit as st
+import time
+
+# ✅ Import your helper modules
 from deepfake_detection import predict_video_authenticity, MODEL_PATH
 from face_detection import draw_faces
 from suspicious_activity_detection import analyze_video_for_activity
