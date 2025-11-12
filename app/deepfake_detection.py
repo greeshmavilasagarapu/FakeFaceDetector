@@ -1,107 +1,101 @@
-
+# app/deepfake_detection.py
 """
-deepfake_detection.py
-Light wrapper to run a frame-wise prediction using a Keras model
-(or fall back to a DeepFace-based heuristic if model not provided).
-This stub is ready to be replaced with a real DFDC/Xception model file.
+Deepfake Detection Module
+-------------------------
+Handles AI-based deepfake analysis for both recorded and live video frames.
+
+Functions:
+- predict_video_authenticity(video_path, sample_rate=8): analyzes a full video.
+- predict_frame_authenticity(frame_rgb): analyzes a single frame (for live feed).
+
+This module currently uses simulated deepfake detection scores for demonstration.
+In a production version, replace simulated logic with a pre-trained CNN or transformer-based model.
 """
 
-from pathlib import Path
-from typing import Optional, List
-import numpy as np
 import cv2
-import logging
+import numpy as np
+import random
+from pathlib import Path
 
-try:
-    from tensorflow.keras.models import load_model
-except Exception:
-    load_model = None  # model loading may not be available in test env
-
-# Path where you will place the pretrained model (optional)
-MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "deepfake_model.h5"
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("deepfake")
+# Optional: path to pretrained model (if available)
+MODEL_PATH = Path("models/deepfake_model.pth")
 
 
-def _load_keras_model(model_path: Path):
-    if load_model is None:
-        raise RuntimeError("Keras not available in this environment.")
-    if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found: {model_path}")
-    logger.info("Loading model from %s", model_path)
-    return load_model(str(model_path))
-
-
-def _frame_predict(model, frame: np.ndarray) -> float:
+def predict_video_authenticity(video_path, sample_rate=8, model_path=None):
     """
-    Expect model to return probability of 'fake' (between 0 and 1).
-    Resize and normalize the frame as required by your model.
-    """
-    img = cv2.resize(frame, (224, 224))
-    img = img.astype("float32") / 255.0
-    # model expects batch dimension
-    pred = model.predict(np.expand_dims(img, 0))
-    # normalize different output shapes
-    if pred.ndim == 2:
-        pred_val = float(pred[0, 0])
-    else:
-        pred_val = float(np.squeeze(pred))
-    return float(np.clip(pred_val, 0.0, 1.0))
+    Predict the authenticity score of a video by sampling frames.
 
+    Args:
+        video_path (str | Path): Path to the video file.
+        sample_rate (int): Analyze every nth frame to save time.
+        model_path (str | Path, optional): Path to trained model.
 
-def predict_video_authenticity(video_path: Path, model_path: Optional[Path] = None, sample_rate: int = 10) -> float:
+    Returns:
+        float: Authenticity percentage (0–100), higher means more likely real.
     """
-    Runs through the video and returns an 'authenticity' score (0-100).
-    sample_rate: process every Nth frame to speed up the demo.
-    """
-    if model_path and model_path.exists():
-        model = _load_keras_model(model_path)
-    else:
-        model = None
-        logger.warning("No model provided — using simple heuristic (DeepFace fallback).")
+    if not Path(video_path).exists():
+        raise FileNotFoundError(f"Video file not found: {video_path}")
 
     cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        raise FileNotFoundError(f"Cannot open video: {video_path}")
+    scores = []
+    frame_count = 0
 
-    scores: List[float] = []
-    frame_idx = 0
+    if not cap.isOpened():
+        raise RuntimeError(f"Cannot open video file: {video_path}")
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        frame_idx += 1
-        if frame_idx % sample_rate != 0:
-            continue
-        try:
-            if model is not None:
-                fake_prob = _frame_predict(model, frame)
-            else:
-                # simple heuristic: check if face is detected and not empty
-                from deepface import DeepFace  # local import for fallback
-                # this may raise if no face; treat as suspicious
-                analysis = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
-                fake_prob = 0.1 if analysis else 0.5
-        except Exception as e:
-            logger.debug("Prediction error on frame %s: %s", frame_idx, e)
-            fake_prob = 0.5
-        scores.append(fake_prob)
+
+        if frame_count % sample_rate == 0:
+            # Convert frame to RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # Simulated deepfake detection — replace with actual model later
+            frame_score = _simulate_model_prediction(rgb_frame)
+            scores.append(frame_score)
+
+        frame_count += 1
 
     cap.release()
-    if not scores:
+
+    if len(scores) == 0:
         return 0.0
-    mean_fake_prob = float(np.mean(scores))
-    authenticity = max(0.0, 100.0 * (1.0 - mean_fake_prob))
-    logger.info("Video authenticity score: %.2f%%", authenticity)
-    return authenticity
+
+    avg_score = sum(scores) / len(scores)
+    authenticity_percentage = float(avg_score * 100)
+    return authenticity_percentage
 
 
-if __name__ == "__main__":
-    from pathlib import Path
-    v = Path("data/sample_video.mp4")
-    try:
-        score = predict_video_authenticity(v, model_path=MODEL_PATH if MODEL_PATH.exists() else None, sample_rate=15)
-        print("Authenticity:", f"{score:.2f}%")
-    except Exception as err:
-        print("deepfake_detection error:", err)
+def predict_frame_authenticity(frame_rgb):
+    """
+    Predict authenticity for a single frame (used in live interview monitoring).
+
+    Args:
+        frame_rgb (np.ndarray): RGB frame from webcam feed.
+
+    Returns:
+        float: Probability (0–1) that frame is real.
+    """
+    if frame_rgb is None or not isinstance(frame_rgb, np.ndarray):
+        raise ValueError("Invalid frame input for deepfake detection.")
+
+    # Simulated frame-level authenticity score
+    return _simulate_model_prediction(frame_rgb)
+
+
+def _simulate_model_prediction(frame_rgb):
+    """
+    Simulates deepfake model prediction logic.
+    Replace this with your CNN/DeepFace/Transformer inference in production.
+    """
+    # Example logic: random variation simulating model confidence
+    base_confidence = random.uniform(0.6, 0.99)
+
+    # Add some frame brightness/noise factors to simulate variability
+    brightness = np.mean(frame_rgb) / 255.0
+    adjustment = (brightness - 0.5) * 0.1  # small brightness effect
+
+    simulated_score = np.clip(base_confidence + adjustment, 0.0, 1.0)
+    return simulated_score
