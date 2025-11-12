@@ -1,6 +1,6 @@
 import streamlit as st
-from app import dashboard
-from pages import Uploads, Analysis, Reports  # new pages
+from app import dashboard, deepfake_detection, face_detection, suspicious_activity_detection
+from pages import Uploads, Analysis, Reports
 
 # Page configuration
 st.set_page_config(
@@ -10,11 +10,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Sidebar navigation
+# Sidebar
 st.sidebar.title("🧠 Fake Face Detector")
 st.sidebar.markdown("Ensure authentic video interviews with AI-powered deepfake detection.")
 
-# Add all pages to the sidebar
+# Sidebar navigation
 page = st.sidebar.radio(
     "Navigate",
     ["Dashboard", "Uploads", "Analysis", "Reports"]
@@ -30,4 +30,4 @@ elif page == "Analysis":
 elif page == "Reports":
     Reports.show()
 else:
-    st.error("Page not found. Please select from the sidebar.")
+    st.error("Page not found.")
