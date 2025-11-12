@@ -1,21 +1,15 @@
 import streamlit as st
-from pathlib import Path
-import pandas as pd
 
-st.set_page_config(page_title="Reports", layout="wide")
-st.title("Analysis Reports")
+def show():
+    st.title("🕵️ Fake Face Detector - Reports")
+    st.write("View analysis results and reports of your uploads here.")
 
-# Assuming you store results in app/outputs/results.csv
-results_file = Path("app/outputs/results.csv")
-
-if results_file.exists():
-    df = pd.read_csv(results_file)
-    st.dataframe(df)
-    st.download_button(
-        label="Download Report",
-        data=df.to_csv(index=False),
-        file_name="fakeface_report.csv",
-        mime="text/csv"
-    )
-else:
-    st.warning("No reports found. Run Analysis first.")
+    st.info("No analysis available yet." if st.session_state.get("analysis_done") is None else "")
+    
+    # Example placeholder table
+    st.subheader("Analysis Summary")
+    st.table({
+        "File": ["video1.mp4", "image1.jpg"],
+        "Deepfake Detected": ["No", "Yes"],
+        "Suspicious Activity": ["No", "Yes"]
+    })
