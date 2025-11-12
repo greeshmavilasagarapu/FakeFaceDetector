@@ -1,15 +1,13 @@
-# app.py
 import streamlit as st
+from app import dashboard, login, about
 
-st.set_page_config(page_title="Interview Authenticity App", layout="wide")
+# Sidebar navigation
+st.sidebar.title("🧠 Fake Face Detector")
+page = st.sidebar.radio("Navigate", ["Login", "Dashboard", "About"])
 
-st.title("Interview Authenticity Checker — Home")
-st.write("""
-This app validates interview videos for deepfakes and suspicious activity.
-Use the sidebar to navigate, or choose a page below.
-""")
-
-st.markdown("## Quick links")
-st.markdown("- Go to **Dashboard** via the left pages menu.")
-st.markdown("- View **Reports** and exported outputs.")
-st.markdown("- Read **About** for tech stack and credits.")
+if page == "Login":
+    login.show()
+elif page == "Dashboard":
+    dashboard.show()
+else:
+    about.show()
