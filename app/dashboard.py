@@ -10,10 +10,11 @@ import numpy as np
 # Add app folder to path so Python can find modules
 BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(BASE_DIR / "app"))
+# --- Imports ---
+from app.deepfake_detection import predict_video_authenticity, MODEL_PATH
+from app.face_detection import detect_faces_in_image, draw_faces
+from app.suspicious_activity_detection import analyze_video_for_activity
 
-from deepfake_detection import predict_video_authenticity, predict_frame_authenticity, MODEL_PATH
-from face_detection import detect_faces_in_image, draw_faces
-from suspicious_activity_detection import analyze_video_for_activity
 
 # --- Streamlit Config ---
 st.set_page_config(page_title="Interview Authenticity Checker", layout="wide")
