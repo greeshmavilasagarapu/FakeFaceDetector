@@ -1,13 +1,13 @@
-# fakefacedetector/app/dashboard.py
 import streamlit as st
 
-st.set_page_config(page_title="Fake Face Detector", layout="wide")
+def show():
+    st.title("🕵️ Fake Face Detector - Dashboard")
+    st.write("Welcome! Track your video analysis and suspicious activities here.")
 
-st.title("🕵️ Fake Face Detector Dashboard")
-
-uploaded_file = st.file_uploader("Upload a video or image", type=["mp4", "jpg", "png"])
-if uploaded_file is not None:
-    st.video(uploaded_file) if uploaded_file.name.endswith(".mp4") else st.image(uploaded_file)
-    st.write("✅ File uploaded successfully! (Model analysis coming soon...)")
-else:
-    st.info("Please upload a file to begin analysis.")
+    # Example summary stats
+    st.subheader("Summary")
+    st.metric("Videos Analyzed", "12")
+    st.metric("Deepfake Detected", "2")
+    st.metric("Pending Analysis", "3")
+    
+    st.info("Use the sidebar to navigate to Uploads, Analysis, or Reports.")
