@@ -1,19 +1,23 @@
-# app/dashboard.py
-import streamlit as st
+import sys
+from pathlib import Path
 import tempfile
 import time
 import cv2
 import numpy as np
-from pathlib import Path
+import streamlit as st
 
-# ✅ Relative imports from the current folder
+# ✅ Ensure current folder (app/) is in Python path
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.append(str(BASE_DIR))
+
+# ✅ Import helper modules
 from deepfake_detection import predict_video_authenticity, predict_frame_authenticity
 from face_detection import draw_faces
 from suspicious_activity_detection import analyze_video_for_activity
 
 # --- Streamlit Config ---
 st.set_page_config(page_title="Interview Authenticity Checker", layout="wide")
-
 st.title("🎥 Interview Authenticity Checker — AI Powered")
 
 st.write("""
@@ -34,6 +38,7 @@ if mode == "Recorded Video":
     photo_path = None
 
     if uploaded_video:
+        # Save uploaded video temporarily
         temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         temp_video.write(uploaded_video.read())
         video_path = temp_video.name
@@ -52,14 +57,14 @@ if mode == "Recorded Video":
             st.error("Please upload a video first.")
         else:
             with st.spinner("Analyzing video... please wait."):
-                # Deepfake authenticity
+                # --- Deepfake Detection ---
                 try:
                     authenticity = predict_video_authenticity(video_path)
                     st.success(f"Authenticity Score: **{authenticity:.2f}%**")
                 except Exception as e:
                     st.error(f"Deepfake analysis failed: {e}")
 
-                # Suspicious activity
+                # --- Suspicious Activity Detection ---
                 try:
                     activity = analyze_video_for_activity(video_path)
                     st.subheader("Suspicious Activity Report")
@@ -67,11 +72,11 @@ if mode == "Recorded Video":
                 except Exception as e:
                     st.warning(f"Activity detection failed: {e}")
 
-                # Faces snapshot
+                # --- Face Snapshot ---
                 try:
-                    snapshot_path = str(Path(tempfile.gettempdir()) / "faces_snapshot.jpg")
-                    draw_faces(video_path, snapshot_path)
-                    st.image(snapshot_path, caption="Detected Faces Snapshot")
+                    snapshot = str(Path(tempfile.gettempdir()) / "faces_snapshot.jpg")
+                    draw_faces(video_path, snapshot)
+                    st.image(snapshot, caption="Detected Faces Snapshot")
                 except Exception as e:
                     st.warning(f"Face snapshot failed: {e}")
 
@@ -90,6 +95,7 @@ else:
             st.error("Unable to access webcam. Please check your permissions.")
         else:
             st.info("Press 'Stop' in the toolbar or refresh the page to exit live mode.")
+            frame_count = 0
             live_scores = []
 
             while True:
@@ -99,28 +105,32 @@ else:
 
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                # Deepfake score for the frame
-                score = predict_frame_authenticity(frame_rgb)
-                live_scores.append(score)
-
-                # Overlay score on frame
-                cv2.putText(
-                    frame_rgb,
-                    f"Authenticity: {score * 100:.2f}%",
-                    (30, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (0, 255, 0) if score > 0.5 else (255, 0, 0),
-                    2,
-                    cv2.LINE_AA,
-                )
+                # --- Deepfake prediction per frame ---
+                try:
+                    score = predict_frame_authenticity(frame_rgb)
+                    live_scores.append(score)
+                    # Overlay authenticity on frame
+                    cv2.putText(
+                        frame_rgb,
+                        f"Authenticity: {score*100:.2f}%",
+                        (30, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (0, 255, 0) if score > 0.5 else (255, 0, 0),
+                        2,
+                        cv2.LINE_AA,
+                    )
+                except Exception as e:
+                    st.warning(f"Frame analysis failed: {e}")
 
                 stframe.image(frame_rgb, channels="RGB", use_container_width=True)
+                frame_count += 1
                 time.sleep(0.1)
 
             cap.release()
-            avg_score = np.mean(live_scores) * 100
-            st.success(f"Session Authenticity Score: **{avg_score:.2f}%**")
+            if live_scores:
+                avg_score = np.mean(live_scores) * 100
+                st.success(f"Session Authenticity Score: **{avg_score:.2f}%**")
 
 st.markdown("---")
-st.markdown("**Note:** Replace simulated deepfake detection functions with real ML models for production use.")
+st.markdown("**Note:** This is a prototype. Replace the simulated deepfake model with a real trained CNN or DeepFace detector for production use.")
