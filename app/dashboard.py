@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 import streamlit as st
 import pandas as pd
+import time
 
 # Add app folder to path so Python can find modules
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -34,8 +35,18 @@ st.markdown("""
 .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
 .header { background-color: #1f2937; color: white; padding: 1rem 2rem; border-radius: 5px; margin-bottom: 1rem; }
 [data-testid="stSidebar"] { background-color: #e5e7eb; padding: 1rem; }
-.stButton>button { background-color: #2563eb; color: white; font-size: 16px; height: 45px; border-radius: 5px; }
-.stTable { font-size: 14px; }
+.stButton>button {
+    background-color: #2563eb !important;
+    color: white !important;
+    font-size: 16px !important;
+    height: 45px !important;
+    border-radius: 6px !important;
+    border: none !important;
+    transition: 0.2s ease-in-out;
+}
+.stButton>button:hover {
+    background-color: #1d4ed8 !important;
+}
 .card {
     background-color: white;
     border-radius: 10px;
@@ -60,18 +71,11 @@ st.markdown("""
 # --- Header ---
 st.markdown('<div class="header"><h2>Interview Authenticity Checker</h2></div>', unsafe_allow_html=True)
 
-# Optional logo
-st.markdown("""
-<div style="text-align:right; margin-bottom:10px;">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Logo_of_Streamlit.svg/1200px-Logo_of_Streamlit.svg.png" width="100">
-</div>
-""", unsafe_allow_html=True)
-
-# --- Sidebar for uploads & settings ---
+# --- Sidebar ---
 st.sidebar.title("Upload & Settings")
 uploaded_video = st.sidebar.file_uploader("Upload Interview Video", type=["mp4", "mov", "avi"])
 uploaded_photo = st.sidebar.file_uploader("Upload ID Photo (optional)", type=["jpg", "png", "jpeg"])
-sample_rate = st.sidebar.slider("Frame Sample Rate", min_value=1, max_value=30, value=8, help="Lower = more frames processed, slower but more accurate")
+sample_rate = st.sidebar.slider("Frame Sample Rate", min_value=1, max_value=30, value=8)
 st.sidebar.markdown("---")
 st.sidebar.markdown("If no files are uploaded, default files from `data/` will be used.")
 
@@ -94,10 +98,10 @@ elif default_photo:
 else:
     photo_path = None
 
-# --- Tabs for sections ---
+# --- Tabs ---
 tab1, tab2, tab3 = st.tabs(["📤 Upload", "📊 Analysis Results", "🖼️ Face Snapshots"])
 
-# --- Tab 1: Upload Preview ---
+# --- Tab 1: Upload ---
 with tab1:
     st.subheader("Video Preview")
     if video_path and video_path.exists():
@@ -113,30 +117,32 @@ with tab1:
 
 # --- Tab 2: Analysis Results ---
 with tab2:
-    if st.button("Run Analysis"):
+    run_button = st.button("Run Analysis 🚀", use_container_width=True)
+
+    if run_button:
         if not video_path or not video_path.exists():
             st.error("No video available. Upload one or place it in the data folder.")
         else:
-            authenticity = None
-            activity_report = {}
+            # --- Deepfake Analysis ---
+            with st.spinner("Analyzing video authenticity... Please wait."):
+                time.sleep(1)
+                try:
+                    authenticity = predict_video_authenticity(
+                        video_path,
+                        model_path=MODEL_PATH if MODEL_PATH.exists() else None,
+                        sample_rate=sample_rate
+                    )
+                except Exception as e:
+                    authenticity = None
+                    st.warning(f"Could not run deepfake analysis: {e}")
 
-            # --- Deepfake Score Card ---
-            try:
-                authenticity = predict_video_authenticity(
-                    video_path,
-                    model_path=MODEL_PATH if MODEL_PATH.exists() else None,
-                    sample_rate=sample_rate
-                )
-                
+            if authenticity is not None:
                 if authenticity > 80:
-                    color = "#16a34a"  # green
-                    status = "Likely Real"
+                    color, status = "#16a34a", "Likely Real"
                 elif authenticity > 50:
-                    color = "#eab308"  # yellow
-                    status = "Check Carefully"
+                    color, status = "#eab308", "Check Carefully"
                 else:
-                    color = "#dc2626"  # red
-                    status = "Likely Fake"
+                    color, status = "#dc2626", "Likely Fake"
 
                 st.markdown(f"""
                 <div style="
@@ -151,67 +157,65 @@ with tab2:
                 </div>
                 """, unsafe_allow_html=True)
 
-            except Exception as e:
-                st.warning(f"Could not run deepfake analysis: {e}")
+            # --- Suspicious Activity ---
+            with st.spinner("Checking for suspicious activities..."):
+                time.sleep(1)
+                try:
+                    activity_report = analyze_video_for_activity(video_path, sample_rate=sample_rate)
+                    st.markdown('<div class="card-header">Suspicious Activity Report</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="card card-content">', unsafe_allow_html=True)
+                    report_df = pd.DataFrame([activity_report])
+                    st.table(report_df)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                except Exception as e:
+                    st.warning(f"Could not run activity analysis: {e}")
 
-            # --- Suspicious Activity Card ---
-            try:
-                activity_report = analyze_video_for_activity(video_path, sample_rate=sample_rate)
-                
-                st.markdown('<div class="card-header">Suspicious Activity Report</div>', unsafe_allow_html=True)
-                st.markdown('<div class="card card-content">', unsafe_allow_html=True)
-                report_df = pd.DataFrame([activity_report])
-                st.table(report_df)
-                st.markdown("</div>", unsafe_allow_html=True)
+            # --- Summary Report ---
+            with st.spinner("Compiling summary..."):
+                time.sleep(0.8)
+                try:
+                    st.markdown('<div class="card-header">Summary Report</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="card card-content">', unsafe_allow_html=True)
 
-            except Exception as e:
-                st.warning(f"Could not run activity analysis: {e}")
+                    total_frames = activity_report.get("frames_processed", 0)
+                    multi_face = activity_report.get("multiple_face_events", 0)
+                    no_face = activity_report.get("no_face_events", 0)
 
-            # --- Summary Report Card ---
-            try:
-                st.markdown('<div class="card-header">🧾 Summary Report</div>', unsafe_allow_html=True)
-                st.markdown('<div class="card card-content">', unsafe_allow_html=True)
+                    col1, col2, col3 = st.columns(3)
+                    if authenticity is not None:
+                        col1.metric("Authenticity Score", f"{authenticity:.2f}%")
+                    col2.metric("Frames Processed", total_frames)
+                    col3.metric("Multiple Faces", multi_face)
 
-                total_frames = activity_report.get("frames_processed", 0)
-                multi_face = activity_report.get("multiple_face_events", 0)
-                no_face = activity_report.get("no_face_events", 0)
+                    st.markdown("---")
+                    if authenticity is not None:
+                        if authenticity < 60:
+                            st.warning("⚠️ The video may be *inauthentic*. Please verify manually.")
+                        elif multi_face > 5:
+                            st.warning("⚠️ Multiple faces detected — possible tampering or background interference.")
+                        else:
+                            st.success("✅ The video appears authentic and visually consistent.")
+                    st.markdown("</div>", unsafe_allow_html=True)
 
-                col1, col2, col3 = st.columns(3)
-                if authenticity is not None:
-                    col1.metric("Authenticity Score", f"{authenticity:.2f}%")
-                col2.metric("Frames Processed", total_frames)
-                col3.metric("Multiple Faces", multi_face)
+                except Exception as e:
+                    st.info(f"Could not generate summary: {e}")
 
-                st.markdown("---")
-
-                if authenticity is not None:
-                    if authenticity < 60:
-                        st.warning("⚠️ The video appears potentially *inauthentic*. Please review carefully.")
-                    elif multi_face > 5:
-                        st.warning("⚠️ Multiple faces detected — possible tampering or background interference.")
-                    else:
-                        st.success("✅ The video seems authentic and consistent with expected visual patterns.")
-
-                st.markdown("</div>", unsafe_allow_html=True)
-
-            except Exception as e:
-                st.info(f"Could not generate summary: {e}")
-
-# --- Tab 3: Face Snapshots ---
+# --- Tab 3: Faces ---
 with tab3:
     st.subheader("Detected Faces Snapshot")
-    try:
-        snapshot_path = OUT_DIR / "snapshot_faces.jpg"
-        draw_faces(video_path, snapshot_path)
-        st.image(str(snapshot_path))
-    except Exception as e:
-        st.info("Face snapshot will appear here after analysis.")
+    with st.spinner("Generating face snapshot..."):
+        try:
+            snapshot_path = OUT_DIR / "snapshot_faces.jpg"
+            draw_faces(video_path, snapshot_path)
+            st.image(str(snapshot_path))
+        except Exception:
+            st.info("Face snapshot will appear here after analysis.")
 
-# --- Footer Notes ---
+# --- Footer ---
 st.markdown("""
 ---
 **Notes:**  
-- Demo prototype for portfolio purposes.  
-- Replace placeholder models with production-level models for deployment.  
-- AI-powered detection for fair and authentic digital recruitment.
+- Demo prototype for portfolio use.  
+- Replace placeholder models with production-level ML systems.  
+- Streamlined with fast execution and responsive feedback.
 """)
