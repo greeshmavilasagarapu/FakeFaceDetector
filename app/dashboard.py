@@ -7,9 +7,9 @@ import numpy as np
 from pathlib import Path
 
 # ✅ Relative imports from the current folder
-from .deepfake_detection import predict_video_authenticity, predict_frame_authenticity
-from .face_detection import draw_faces
-from .suspicious_activity_detection import analyze_video_for_activity
+from deepfake_detection import predict_video_authenticity, predict_frame_authenticity
+from face_detection import draw_faces
+from suspicious_activity_detection import analyze_video_for_activity
 
 # --- Streamlit Config ---
 st.set_page_config(page_title="Interview Authenticity Checker", layout="wide")
