@@ -99,6 +99,9 @@ with tab2:
         if not video_path or not video_path.exists():
             st.error("No video available. Upload one or place it in the data folder.")
         else:
+            authenticity = None
+            activity_report = {}
+
             # --- Deepfake Score Card ---
             try:
                 authenticity = predict_video_authenticity(
@@ -154,6 +157,34 @@ with tab2:
 
             except Exception as e:
                 st.warning(f"Could not run activity analysis: {e}")
+
+            # --- 🧾 Summary Report Section ---
+            try:
+                st.markdown("---")
+                st.subheader("🧾 Summary Report")
+
+                total_frames = activity_report.get("frames_processed", 0)
+                multi_face = activity_report.get("multiple_face_events", 0)
+                no_face = activity_report.get("no_face_events", 0)
+
+                if authenticity is not None:
+                    st.metric("Authenticity Score", f"{authenticity:.2f}%")
+
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Frames Processed", total_frames)
+                col2.metric("Multiple Faces Detected", multi_face)
+                col3.metric("No Face Frames", no_face)
+
+                # Interpretation
+                if authenticity is not None:
+                    if authenticity < 60:
+                        st.warning("⚠️ The video appears potentially *inauthentic*. Review carefully.")
+                    elif multi_face > 5:
+                        st.warning("⚠️ Multiple faces detected — possible tampering or background activity.")
+                    else:
+                        st.success("✅ The video seems authentic and consistent with expected patterns.")
+            except Exception as e:
+                st.info(f"Could not generate summary: {e}")
 
 # --- Tab 3: Face Snapshots ---
 with tab3:
