@@ -1,40 +1,37 @@
-import sys
-import os
-from pathlib import Path
-
-# ✅ Ensure the "app" folder is in the Python path
-BASE_DIR = Path(__file__).resolve().parent
-sys.path.append(str(BASE_DIR))
-
 import streamlit as st
+import tempfile
 import time
+from pathlib import Path
+import cv2
+import numpy as np
 
-# ✅ Import your helper modules
-from deepfake_detection import predict_video_authenticity, MODEL_PATH
-from face_detection import draw_faces
-from suspicious_activity_detection import analyze_video_for_activity
+# --- Import your AI modules ---
+from app.deepfake_detection import predict_video_authenticity, predict_frame_authenticity
+from app.face_detection import draw_faces
+from app.suspicious_activity_detection import analyze_video_for_activity
 
-# --- Streamlit Config ---
-st.set_page_config(page_title="Interview Authenticity Checker", layout="wide")
+# --- Page Config ---
+st.set_page_config(page_title="🕵️ Fake Face Detector Dashboard", layout="wide")
 
-st.title("🎥 Interview Authenticity Checker — AI Powered")
-
-st.write("""
-This dashboard allows you to **verify authenticity** of digital interviews in two modes:
-1. **Recorded Video Mode** — upload a pre-recorded video.  
-2. **Live Interview Mode** — record and analyze in real-time using your webcam.
-""")
+st.title("🕵️ Fake Face Detector Dashboard")
+st.markdown("Upload a video or image to check authenticity, or run a live interview mode.")
 
 # --- Mode Selection ---
 mode = st.radio("Select Mode", ["Recorded Video", "Live Interview"], horizontal=True)
 
-# --- Recorded Video Mode ---
+# --- RECORDED VIDEO MODE ---
 if mode == "Recorded Video":
-    uploaded_video = st.file_uploader("Upload interview video", type=["mp4", "mov", "avi"])
-    uploaded_photo = st.file_uploader("Upload ID photo (optional)", type=["jpg", "png", "jpeg"])
+    uploaded_video = st.file_uploader(
+        "Upload a video",
+        type=["mp4", "avi", "mov", "mpeg4"],
+        help="Limit 200MB per file"
+    )
+    uploaded_photo = st.file_uploader(
+        "Upload reference photo (optional)",
+        type=["jpg", "png", "jpeg"]
+    )
 
     if uploaded_video:
-        # Save uploaded video temporarily
         temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         temp_video.write(uploaded_video.read())
         video_path = temp_video.name
@@ -55,78 +52,86 @@ if mode == "Recorded Video":
         if not video_path:
             st.error("Please upload a video first.")
         else:
-            with st.spinner("Analyzing video... please wait."):
+            with st.spinner("Analyzing video..."):
+                # --- Deepfake Detection ---
                 try:
                     authenticity = predict_video_authenticity(video_path)
                     st.success(f"Authenticity Score: **{authenticity:.2f}%**")
                 except Exception as e:
                     st.error(f"Deepfake analysis failed: {e}")
 
+                # --- Suspicious Activity ---
                 try:
-                    activity = analyze_video_for_activity(video_path)
+                    activity_report = analyze_video_for_activity(video_path)
                     st.subheader("Suspicious Activity Report")
-                    st.json(activity)
+                    st.json(activity_report)
                 except Exception as e:
                     st.warning(f"Activity detection failed: {e}")
 
+                # --- Face Detection Snapshot ---
                 try:
-                    snapshot = str(Path(tempfile.gettempdir()) / "faces_snapshot.jpg")
-                    draw_faces(video_path, snapshot)
-                    st.image(snapshot, caption="Detected Faces Snapshot")
+                    snapshot_path = str(Path(tempfile.gettempdir()) / "faces_snapshot.jpg")
+                    draw_faces(video_path, snapshot_path)
+                    st.image(snapshot_path, caption="Detected Faces Snapshot")
                 except Exception as e:
                     st.warning(f"Face snapshot failed: {e}")
 
-# --- Live Interview Mode ---
+# --- LIVE INTERVIEW MODE ---
 else:
     st.subheader("🎙️ Live Interview Mode")
-
-    st.write("This mode activates your **webcam** and performs real-time face and deepfake monitoring.")
+    st.markdown("This mode activates your webcam and performs real-time monitoring.")
 
     start_button = st.button("Start Live Interview")
+    stop_button = st.button("Stop Live Interview")
 
     if start_button:
         stframe = st.empty()
         cap = cv2.VideoCapture(0)
 
         if not cap.isOpened():
-            st.error("Unable to access webcam. Please check your permissions.")
+            st.error("Unable to access webcam. Check your permissions.")
         else:
-            st.info("Press 'Stop' in the toolbar or refresh the page to exit live mode.")
+            st.info("Press 'Stop Live Interview' button or refresh page to end session.")
 
-            frame_count = 0
             live_scores = []
 
-            while True:
+            while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
 
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                # Get deepfake authenticity for this frame
-                score = predict_frame_authenticity(frame_rgb)
+                # --- Deepfake Frame Score ---
+                try:
+                    score = predict_frame_authenticity(frame_rgb)
+                except Exception:
+                    score = 0  # fallback
                 live_scores.append(score)
 
-                # Show live feed with score
+                # --- Overlay score on frame ---
                 cv2.putText(
                     frame_rgb,
-                    f"Authenticity: {score * 100:.2f}%",
+                    f"Authenticity: {score*100:.2f}%",
                     (30, 40),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
                     (0, 255, 0) if score > 0.5 else (255, 0, 0),
                     2,
-                    cv2.LINE_AA,
+                    cv2.LINE_AA
                 )
 
                 stframe.image(frame_rgb, channels="RGB", use_container_width=True)
 
-                frame_count += 1
                 time.sleep(0.1)
 
+                if stop_button:
+                    break
+
             cap.release()
-            avg_score = np.mean(live_scores) * 100
-            st.success(f"Session Authenticity Score: **{avg_score:.2f}%**")
+            if live_scores:
+                avg_score = np.mean(live_scores) * 100
+                st.success(f"Session Authenticity Score: **{avg_score:.2f}%**")
 
 st.markdown("---")
-st.markdown("**Note:** This is a prototype. Replace simulated deepfake model with a real trained CNN or DeepFace detector for production use.")
+st.markdown("**Note:** This is a prototype. Replace the simulated deepfake model with a real CNN/DeepFace model for production use.")
