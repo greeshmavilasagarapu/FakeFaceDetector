@@ -1,29 +1,32 @@
-# app/face_detection.py
-from pathlib import Path
 import cv2
+from pathlib import Path
+import os
+import numpy as np
 
-def detect_faces_in_image(image_path: Path):
+def detect_faces(uploaded_file_path):
     """
-    Detect faces in an image and return dummy bounding boxes.
+    Dummy face detection function.
+    Returns a result string instead of an image to simplify the Streamlit display.
     """
-    img = cv2.imread(str(image_path))
-    if img is None:
-        return []
-    h, w = img.shape[:2]
-    # Return one rectangle in the center for demo
-    return [(w//4, h//4, w//2, h//2)]
+    if not uploaded_file_path:
+        return "N/A - File not found for analysis."
 
-def draw_faces(video_path: Path, output_path: Path):
-    """
-    Draw a dummy rectangle on the first frame of the video as snapshot.
-    """
-    cap = cv2.VideoCapture(str(video_path))
+    cap = cv2.VideoCapture(uploaded_file_path)
+    
+    if not cap.isOpened():
+        return "Error: Could not open video file."
+        
+    # Get total frames and pick a frame to analyze
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count // 2)
     ret, frame = cap.read()
-    if not ret:
-        cap.release()
-        raise FileNotFoundError(f"Cannot read video: {video_path}")
-
-    h, w = frame.shape[:2]
-    cv2.rectangle(frame, (w//4, h//4), (3*w//4, 3*h//4), (0, 255, 0), 3)
-    cv2.imwrite(str(output_path), frame)
     cap.release()
+
+    if not ret:
+        return "Error: Could not read a frame."
+
+    # Dummy face detection logic
+    # Assume 1 face is detected, replace with your actual model output
+    faces_detected = 1
+    
+    return f"Faces Detected in frame: **{faces_detected}**"
