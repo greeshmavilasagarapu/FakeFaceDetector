@@ -36,6 +36,24 @@ st.markdown("""
 [data-testid="stSidebar"] { background-color: #e5e7eb; padding: 1rem; }
 .stButton>button { background-color: #2563eb; color: white; font-size: 16px; height: 45px; border-radius: 5px; }
 .stTable { font-size: 14px; }
+.card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-top: 20px;
+}
+.card-header {
+    background-color: #2563eb;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px 8px 0 0;
+    font-weight: bold;
+    font-size: 18px;
+}
+.card-content {
+    padding: 15px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -140,49 +158,42 @@ with tab2:
             try:
                 activity_report = analyze_video_for_activity(video_path, sample_rate=sample_rate)
                 
-                st.markdown(f"""
-                <div style="
-                    background-color:#2563eb;
-                    color:white;
-                    padding:15px;
-                    border-radius:10px;
-                    margin-top:15px;
-                    font-size:18px;">
-                    Suspicious Activity Report
-                </div>
-                """, unsafe_allow_html=True)
-                
+                st.markdown('<div class="card-header">Suspicious Activity Report</div>', unsafe_allow_html=True)
+                st.markdown('<div class="card card-content">', unsafe_allow_html=True)
                 report_df = pd.DataFrame([activity_report])
                 st.table(report_df)
+                st.markdown("</div>", unsafe_allow_html=True)
 
             except Exception as e:
                 st.warning(f"Could not run activity analysis: {e}")
 
-            # --- 🧾 Summary Report Section ---
+            # --- Summary Report Card ---
             try:
-                st.markdown("---")
-                st.subheader("🧾 Summary Report")
+                st.markdown('<div class="card-header">🧾 Summary Report</div>', unsafe_allow_html=True)
+                st.markdown('<div class="card card-content">', unsafe_allow_html=True)
 
                 total_frames = activity_report.get("frames_processed", 0)
                 multi_face = activity_report.get("multiple_face_events", 0)
                 no_face = activity_report.get("no_face_events", 0)
 
-                if authenticity is not None:
-                    st.metric("Authenticity Score", f"{authenticity:.2f}%")
-
                 col1, col2, col3 = st.columns(3)
-                col1.metric("Frames Processed", total_frames)
-                col2.metric("Multiple Faces Detected", multi_face)
-                col3.metric("No Face Frames", no_face)
+                if authenticity is not None:
+                    col1.metric("Authenticity Score", f"{authenticity:.2f}%")
+                col2.metric("Frames Processed", total_frames)
+                col3.metric("Multiple Faces", multi_face)
 
-                # Interpretation
+                st.markdown("---")
+
                 if authenticity is not None:
                     if authenticity < 60:
-                        st.warning("⚠️ The video appears potentially *inauthentic*. Review carefully.")
+                        st.warning("⚠️ The video appears potentially *inauthentic*. Please review carefully.")
                     elif multi_face > 5:
-                        st.warning("⚠️ Multiple faces detected — possible tampering or background activity.")
+                        st.warning("⚠️ Multiple faces detected — possible tampering or background interference.")
                     else:
-                        st.success("✅ The video seems authentic and consistent with expected patterns.")
+                        st.success("✅ The video seems authentic and consistent with expected visual patterns.")
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
             except Exception as e:
                 st.info(f"Could not generate summary: {e}")
 
